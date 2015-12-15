@@ -3,6 +3,7 @@ use warnings;
 use strict;
 use Data::Dumper;
 use JSON;
+use File::Slurp;
 
 my @months = qw/
 Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
@@ -115,6 +116,8 @@ sub write_sequences_to_sd
     close $ofh;
 }
 
+
+
 sub write_js_file
 {
     my ($jsonfile, @sequences) = @_;
@@ -159,7 +162,8 @@ sub write_html_file
 <a href="#" onClick="goToNextCall()">Next Call</a>
 <a href="#" onClick="goToPreviousCall()">Prev Call</a> <span id="sequence_title"></span>
 </div>
-<div style="
+<div id="search" style="
+    display: none;
     height: 33%;
     position: fixed; 
     top:0%;
@@ -167,7 +171,22 @@ sub write_html_file
     right:0;
     border: 1px red;
     opacity: 1;
-"><pre id="formation_view">
+"><a href="#" onClick="$('#search').hide(); $('#formations').show()">Formations</a><br/>
+Search stuff goes here
+
+
+</div>
+<div id="formations" style="
+    height: 33%;
+    position: fixed; 
+    top:0%;
+    width:33%; 
+    right:0;
+    border: 1px red;
+    opacity: 1;
+">
+<a href="#" onClick="$('#formations').hide(); $('#search').show();">Search</a><br/>
+<pre id="formation_view">
  4B>   3G<   3B>   2G<
 
  4G>   1B<   1G>   2B<
@@ -201,75 +220,18 @@ EOF
 <script type="text/javascript">
 EOF
     print $ofh "sequences = ".to_json(\@sequences, { pretty => 1 }  ).";\n";
-    
     print $ofh <<'EOF';
 </script>
 EOF
     print $ofh <<'EOF';
 <script type="text/javascript" src="../js/jquery-1.7.1.min.js"></script>
 <script type="text/javascript">//<![CDATA[
+EOF
 
-var currentSequence;
+    print $ofh read_file('callcoordination.js');
 
-function loadFormation(sequence, formation)
-{
-  currentSequence = sequence;
-  formation_text = '';
-  pos = sequences[sequence].formations[formation];
+    print $ofh <<'EOF';
 
-  $('.squareDanceCall').removeClass('currentCall');
-  $("#call" + formation).addClass('currentCall');
-
-  for (count = 0; count < pos.length; ++count)
-  {
-     formation_text += pos[count] + "\n";
-  }
-  $("#formation_view").html(formation_text);
-}
-
-function goToRelativeCall(n)
-{
-   var re = /call(\d+)/;
-   id = $(".currentCall").attr('id');
-   index = id.replace(re, "$1");
-   index = parseInt(index) + n;
-   if ($("#call" + index).length )
-   {
-      loadFormation(currentSequence, index);
-   }
-}
-
-function goToNextCall()
-{
-  goToRelativeCall(1);
-}
-
-function goToPreviousCall()
-{
-  goToRelativeCall(-1);
-}
-
-
-function loadSequence(sequence)
-{
-   $("#sequence_title").html(sequences[sequence].description);
-   moves = '<li>' + sequences[sequence].opening + '</li>';
-   for (call = 0; call < sequences[sequence].moves.length; ++call)
-   {
-      moves += '<li class="squareDanceCall currentCall" id="call'+(call+1)
-          + '"><a onClick="loadFormation('
-          + sequence + ',' + (call + 1) + ')">'
-          + sequences[sequence].moves[call] + '</a></li>';
-   }
-   $("#sequence").html(moves);
-}
-
-$(document).ready(function() {
-list = '';
-for  (counter = 0; counter < sequences.length; counter++)
-   list += '<li><a onClick="loadSequence(' + counter + ');">' + sequences[counter].description + '</a></li>';
-$("#call_list").html(list);
-});
 //]]>
 </script>
 
