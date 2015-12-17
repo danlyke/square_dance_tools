@@ -2,30 +2,48 @@ var currentSequence;
 
 function loadFormation(sequence, formation)
 {
-  currentSequence = sequence;
-  formation_text = '';
-  pos = sequences[sequence].formations[formation];
+    currentSequence = sequence;
+    formation_text = '';
+    pos = sequences[sequence].formations[formation];
 
-  $('.squareDanceCall').removeClass('currentCall');
-  $("#call" + formation).addClass('currentCall');
+    elements = document.getElementsByClassName('squareDanceCall');
+    for (i = 0; i < elements.length; ++i)
+    {
+        e = elements.item(i)
+        console.log("Looking at element " + e);
+        e.classList.remove('currentCall');
+    }
 
-  for (count = 0; count < pos.length; ++count)
-  {
-     formation_text += pos[count] + "\n";
-  }
-  $("#formation_view").html(formation_text);
+    console.log("Looking for call"+formation);
+    document.getElementById("call" + formation).classList.add('currentCall');
+
+    for (count = 0; count < pos.length; ++count)
+    {
+        formation_text += pos[count] + "\n";
+    }
+    document.getElementById("formation_view").innerHTML = formation_text;
 }
 
 function goToRelativeCall(n)
 {
-   var re = /call(\d+)/;
-   id = $(".currentCall").attr('id');
-   index = id.replace(re, "$1");
-   index = parseInt(index) + n;
-   if ($("#call" + index).length )
-   {
-      loadFormation(currentSequence, index);
-   }
+    var re = /call(\d+)/;
+    currentCalls = document.getElementsByClassName('currentCall');
+    var index = 0;
+
+    for (i = 0; i < currentCalls.length; ++i)
+    {
+        call = currentCalls.item(i)
+        id = call.getAttribute('id');
+        if (id)
+        {
+            index = id.replace(re, "$1");
+            index = parseInt(index) + n;
+        }
+    }
+    if (document.getElementById("call" + index) )
+    {
+        loadFormation(currentSequence, index);
+    }
 }
 
 function goToNextCall()
@@ -41,22 +59,37 @@ function goToPreviousCall()
 
 function loadSequence(sequence)
 {
-   $("#sequence_title").html(sequences[sequence].description);
-   moves = '<li>' + sequences[sequence].opening + '</li>';
-   for (call = 0; call < sequences[sequence].moves.length; ++call)
-   {
-      moves += '<li class="squareDanceCall currentCall" id="call'+(call+1)
-          + '"><a onClick="loadFormation('
-          + sequence + ',' + (call + 1) + ')">'
-          + sequences[sequence].moves[call] + '</a></li>';
-   }
-   $("#sequence").html(moves);
+    document.getElementById("sequence_title").innerHTML = sequences[sequence].description;
+    moves = '<li>' + sequences[sequence].opening + '</li>';
+    for (call = 0; call < sequences[sequence].moves.length; ++call)
+    {
+        moves += '<li class="squareDanceCall" id="call'+(call+1)
+            + '"><a onClick="loadFormation('
+            + sequence + ',' + (call + 1) + ')">'
+            + sequences[sequence].moves[call] + '</a></li>';
+    }
+    document.getElementById("sequence").innerHTML = moves;
+    loadFormation(sequence,1);
 }
 
-$(document).ready(function() {
-    list = '';
-    for  (counter = 0; counter < sequences.length; counter++)
-        list += '<li><a onClick="loadSequence(' + counter + ');">' + sequences[counter].description + '</a></li>';
-    $("#call_list").html(list);
-    $('#search').hide();
-});
+    function displayFormations()
+    {
+        var s = document.getElementById('search').style;
+        s.visibility='hidden';
+        var t = document.getElementById('formations').style;
+        t.visibility='visible'
+    }
+
+    function displaySearch()
+    {
+        var s = document.getElementById('formations').style;
+        s.visibility='hidden';
+        var t = document.getElementById('search').style;
+        t.visibility='visible'
+    }
+
+list = '';
+for  (counter = 0; counter < sequences.length; counter++)
+    list += '<li><a onClick="loadSequence(' + counter + ');">' + sequences[counter].description + '</a></li>';
+document.getElementById("call_list").innerHTML = list;
+displaySearch();

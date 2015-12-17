@@ -68,8 +68,8 @@ sub get_next_sequence
             if ($line ne '')
             {
                 push @{ $sequence->{moves} }, $line;
-                push @{ $sequence->{formations} }, [ @formation ];
-                @formation = ();
+                push @{ $sequence->{formations} }, [ @formation ]; 
+               @formation = ();
             }
         }
     }
@@ -97,9 +97,10 @@ sub write_sequences_to_sd
 {
     my ($intermediate_file, @sequences) = @_;
 
-    open my $ofh, '|-', "./sdtty -sequence '$intermediate_file' -keep_all_pictures -no_graphics -no_color"
+    my $sdcmd = './sdtty';
+    open my $ofh, '|-', "$sdcmd -sequence '$intermediate_file' -keep_all_pictures -no_graphics -no_color"
         || die "unable to open for writing\n";
-    print $ofh "0\n";
+#    print $ofh "0\n";
     print $ofh "$sequences[0]->{level}\n";
     for my $sequence (@sequences)
     {
@@ -144,8 +145,10 @@ sub write_html_file
 <!DOCTYPE html>
 <html><head><title>Main Page</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" >
-<style type="text/css">@import "./screen.css";</style>
 <style type="text/css">
+.currentCall {
+background-color: red;
+};
 </style>
 <link href="/favicon.ico" rel="icon" type="image/ico">
 <link href="/favicon.ico" rel="shortcut icon">
@@ -163,7 +166,7 @@ sub write_html_file
 <a href="#" onClick="goToPreviousCall()">Prev Call</a> <span id="sequence_title"></span>
 </div>
 <div id="search" style="
-    display: none;
+    visibility: hidden;
     height: 33%;
     position: fixed; 
     top:0%;
@@ -171,7 +174,7 @@ sub write_html_file
     right:0;
     border: 1px red;
     opacity: 1;
-"><a href="#" onClick="$('#search').hide(); $('#formations').show()">Formations</a><br/>
+"><a href="#" onClick="displayFormations();">Formations</a><br/>
 Search stuff goes here
 
 
@@ -185,7 +188,7 @@ Search stuff goes here
     border: 1px red;
     opacity: 1;
 ">
-<a href="#" onClick="$('#formations').hide(); $('#search').show();">Search</a><br/>
+<a href="#" onClick="displaySearch()">Search</a><br/>
 <pre id="formation_view">
  4B>   3G<   3B>   2G<
 
@@ -224,7 +227,6 @@ EOF
 </script>
 EOF
     print $ofh <<'EOF';
-<script type="text/javascript" src="../js/jquery-1.7.1.min.js"></script>
 <script type="text/javascript">//<![CDATA[
 EOF
 
