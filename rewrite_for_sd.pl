@@ -139,7 +139,8 @@ sub write_html_file
     my ($htmlfile, @sequences) = @_;
     open my $ofh, '>', $htmlfile
         || die "Unbale to open $htmlfile for writing\n";
-    
+
+    my $bottom_height = '80px';
     print $ofh <<'EOF';
 <!DOCTYPE html>
 <html><head><title>Main Page</title>
@@ -152,15 +153,16 @@ sub write_html_file
 </head>
 <body>
 <div style="
-    height: 40px; 
+    height: $bottom_height; 
     position: fixed; 
     bottom:0%;
     width:100%; 
     border: 1px red;
     opacity: 1;
+    font-size: 200%;
 ">
-<a href="#" onClick="goToNextCall()">Next Call</a>
-<a href="#" onClick="goToPreviousCall()">Prev Call</a> <span id="sequence_title"></span>
+<a href="#" onClick="goToNextCall()"><img src="DownArrow.png" alt="Next Call"></a>
+<a href="#" onClick="goToPreviousCall()"><img src="UpArrow.png" alt="Prev Call"></a> <span id="sequence_title"></span>
 </div>
 <div id="search" style="
     display: none;
@@ -171,7 +173,7 @@ sub write_html_file
     right:0;
     border: 1px red;
     opacity: 1;
-"><a href="#" onClick="$('#search').hide(); $('#formations').show()">Formations</a><br/>
+"><a href="#" onClick="\$('#search').hide(); \$('#formations').show()">Formations</a><br/>
 Search stuff goes here
 
 
@@ -184,8 +186,10 @@ Search stuff goes here
     right:0;
     border: 1px red;
     opacity: 1;
+    font-size: 180%;
+    text-align: center;
 ">
-<a href="#" onClick="$('#formations').hide(); $('#search').show();">Search</a><br/>
+<a href="#" onClick="\$('#formations').hide(); \$('#search').show();">Search</a><br/>
 <pre id="formation_view">
  4B>   3G<   3B>   2G<
 
@@ -199,6 +203,8 @@ Search stuff goes here
     right:0;
     border: 1px red;
     opacity: 1;
+    bottom: $bottom_height;
+    font-size: 150%;
     overflow: scroll;
 "><ul id="call_list">
 </ul>
@@ -209,7 +215,8 @@ position: fixed;
 top: 0;
 left: 0;
 width: 66%;
-bottom: 40px;
+bottom: $bottom_height;
+    font-size: 360%;
 ">
 <ul id="sequence">
 </ul>
