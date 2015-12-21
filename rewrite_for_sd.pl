@@ -42,6 +42,19 @@ sub get_next_sequence
     $line =~ s/^\s+//xsg;
     $line =~ s/\s+$//xsg;
     $sequence->{description} = $line;
+
+    do
+    {
+        return undef unless (defined($line = <$fh>) || $line =~ /\x0c/);
+        $line =~ s/^\s+//xsg;
+        $line =~ s/\s+$//xsg;
+        if ($line ne '')
+        {
+            $sequence->{description} .= " $line";
+        }
+    }
+    while ($line ne '');
+    
     my @formation = ();
     
     while (defined($line = <$fh>) && $line !~ /\x0c/)
@@ -68,8 +81,8 @@ sub get_next_sequence
             if ($line ne '')
             {
                 push @{ $sequence->{moves} }, $line;
-                push @{ $sequence->{formations} }, [ @formation ];
-                @formation = ();
+                push @{ $sequence->{formations} }, [ @formation ]; 
+               @formation = ();
             }
         }
     }
@@ -97,7 +110,8 @@ sub write_sequences_to_sd
 {
     my ($intermediate_file, @sequences) = @_;
 
-    open my $ofh, '|-', "./sdtty -sequence '$intermediate_file' -keep_all_pictures -no_graphics -no_color"
+    my $sdcmd = './sdtty';
+    open my $ofh, '|-', "$sdcmd -sequence '$intermediate_file' -keep_all_pictures -no_graphics -no_color"
         || die "unable to open for writing\n";
     print $ofh "0\n";
     print $ofh "$sequences[0]->{level}\n";
@@ -140,32 +154,41 @@ sub write_html_file
     open my $ofh, '>', $htmlfile
         || die "Unbale to open $htmlfile for writing\n";
 
-    my $bottom_height = '80px';
+    my $control_height = '80px';
     print $ofh <<'EOF';
 <!DOCTYPE html>
 <html><head><title>Main Page</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" >
-<style type="text/css">@import "./screen.css";</style>
+<meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;">
+
 <style type="text/css">
+.currentCall {
+background-color: red;
+};
 </style>
 <link href="/favicon.ico" rel="icon" type="image/ico">
 <link href="/favicon.ico" rel="shortcut icon">
 </head>
 <body>
 <div style="
-    height: $bottom_height; 
+top: 90%;
+left: 0px;
+width: 66%;
+    height: $control_height; 
     position: fixed; 
-    bottom:0%;
     width:100%; 
     border: 1px red;
     opacity: 1;
     font-size: 200%;
 ">
-<a href="#" onClick="goToNextCall()"><img src="DownArrow.png" alt="Next Call"></a>
-<a href="#" onClick="goToPreviousCall()"><img src="UpArrow.png" alt="Prev Call"></a> <span id="sequence_title"></span>
+<div style="float:left;">
+<img id="nextCallButton" src="DownArrow.png" />
+<img id="previousCallButton" src="UpArrow.png" />
+</div>
+<span id="sequence_title"></span>
 </div>
 <div id="search" style="
-    display: none;
+    visibility: hidden;
     height: 33%;
     position: fixed; 
     top:0%;
@@ -173,7 +196,7 @@ sub write_html_file
     right:0;
     border: 1px red;
     opacity: 1;
-"><a href="#" onClick="\$('#search').hide(); \$('#formations').show()">Formations</a><br/>
+"><a href="#" onClick="displayFormations();">Formations</a><br/>
 Search stuff goes here
 
 
@@ -189,34 +212,35 @@ Search stuff goes here
     font-size: 180%;
     text-align: center;
 ">
-<a href="#" onClick="\$('#formations').hide(); \$('#search').show();">Search</a><br/>
+<a href="#" onClick="displaySearch()">Search</a><br/>
 <pre id="formation_view">
  4B>   3G<   3B>   2G<
 
  4G>   1B<   1G>   2B<
 </pre></div>
 <div style="
-    height: 66%;
     position: fixed; 
     top:33%;
     width:33%; 
+    height: 66%;
     right:0;
     border: 1px red;
     opacity: 1;
-    bottom: $bottom_height;
     font-size: 150%;
     overflow: scroll;
-"><ul id="call_list">
-</ul>
+    overflow-y: scroll;
+"><ul id="call_list"></ul>
 </div>
+
 <div style="
 overflow:scroll;
 position: fixed;
-top: 0;
+top: $control_height;
 left: 0;
 width: 66%;
-bottom: $bottom_height;
-    font-size: 360%;
+overflow: scroll;
+font-size: 300%;
+height: 90%;
 ">
 <ul id="sequence">
 </ul>
@@ -231,7 +255,6 @@ EOF
 </script>
 EOF
     print $ofh <<'EOF';
-<script type="text/javascript" src="../js/jquery-1.7.1.min.js"></script>
 <script type="text/javascript">//<![CDATA[
 EOF
 
