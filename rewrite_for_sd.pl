@@ -50,19 +50,23 @@ sub get_next_sequence
         $line =~ s/\s+$//xsg;
         if ($line ne '')
         {
+            $line =~ s/\s+/\ /xsg;
             $sequence->{description} .= " $line";
         }
     }
     while ($line ne '');
     
     my @formation = ();
-    
+
     while (defined($line = <$fh>) && $line !~ /\x0c/)
     {
         chomp $line;
-        if ($line eq '' || $line =~ /^\s/xs)
+        if ($line eq '')
         {
-            print "Pushing formation $line\n";
+        }
+        elsif ($line =~ /^\s+/xs)
+        {
+            $line =~ s/^ //g;
             push @formation, $line;
         }
         else
@@ -73,14 +77,29 @@ sub get_next_sequence
                 {
                     $sequence->{opening} = $1;
                 }
+                elsif ($line =~ s/^From\s+squared\s+set\s*$//xsi)
+                {
+                    $sequence->{opening} = 'just as they are';
+                }
                 elsif ($line =~ s/^(heads|sides)\s+//xsi)
                 {
                     $sequence->{opening} = "$1 start";
                 }
             }
+            my $move = $line;
+            
             if ($line ne '')
             {
-                push @{ $sequence->{moves} }, $line;
+                my $move = $line;
+                while (defined($line = <$fh>) && $line !~ /\x0c/
+                       && $line !~ /^\s+Warning\:.*/
+                       && $line =~ /^\s+(\S.*)$/)
+                {
+                    $move .= " $1";
+                }
+                last if ($line =~ /\x0c/);
+
+                push @{ $sequence->{moves} }, $move;
                 push @{ $sequence->{formations} }, [ @formation ]; 
                @formation = ();
             }
@@ -118,10 +137,19 @@ sub write_sequences_to_sd
     for my $sequence (@sequences)
     {
         print $ofh "$sequence->{opening}\n";
+        print $ofh "toggle concept levels\n";
 
         for my $move (@{ $sequence->{moves} })
         {
-            print $ofh "$move\n";
+            while ($move =~ s/\s*\{\s*(.*?)\s*\}\s*//)
+            {
+                print $ofh "insert a comment\n";
+                print $ofh "$1\n";
+            }
+            for my $m (split /\,\s+/, $move)
+            {
+                print $ofh "$m\n";
+            }
         }
         print $ofh "write this sequence\n";
         print $ofh "$sequence->{description}\n";
@@ -162,9 +190,12 @@ sub write_html_file
 <meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;">
 
 <style type="text/css">
+.currentSequence {
+background-color: red;
+}
 .currentCall {
 background-color: red;
-};
+}
 </style>
 <link href="/favicon.ico" rel="icon" type="image/ico">
 <link href="/favicon.ico" rel="shortcut icon">
@@ -222,7 +253,7 @@ Search stuff goes here
     position: fixed; 
     top:33%;
     width:33%; 
-    height: 66%;
+    height: 56%;
     right:0;
     border: 1px red;
     opacity: 1;
@@ -283,14 +314,17 @@ for my $filename (@ARGV)
 {
     my @sequences = parse_sd_file($filename);
     
-    print Dumper(\@sequences);
+    if (1)
+    {
+        my $tempfile = 'test.txt';
+        unlink $tempfile;
+        write_sequences_to_sd($tempfile, @sequences);
+        my $htmlfile = change_extension($filename, 'html');
+        my $jsfile = change_extension($filename, 'js');
+        my @newsequences = parse_sd_file($tempfile);
+        print Dumper(\@newsequences);
 
-    my $tempfile = 'test.txt';
-    unlink $tempfile;
-    write_sequences_to_sd($tempfile, @sequences);
-    my $htmlfile = change_extension($filename, 'html');
-    my $jsfile = change_extension($filename, 'js');
-    my @newsequences = parse_sd_file($tempfile);
-    write_html_file("/var/www/squaredancehelper/$htmlfile", @newsequences);
-    write_js_file("/var/www/squaredancehelper/$jsfile", @newsequences);
+        write_html_file("/var/www/squaredancehelper/$htmlfile", @newsequences);
+        write_js_file("/var/www/squaredancehelper/$jsfile", @newsequences);
+    }
 }
