@@ -2,14 +2,14 @@ var currentSequence;
 
 function loadFormation(sequence, formation)
 {
-    currentSequence = sequence;
-    formation_text = '';
-    pos = sequences[sequence].formations[formation];
+    var currentSequence = sequence;
+    var formation_text = '';
+    var pos = sequences[sequence].formations[formation];
 
-    elements = document.getElementsByClassName('squareDanceCall');
-    for (i = 0; i < elements.length; ++i)
+    var elements = document.getElementsByClassName('squareDanceCall');
+    for (var i = 0; i < elements.length; ++i)
     {
-        e = elements.item(i)
+        var e = elements.item(i)
         console.log("Looking at element " + e);
         e.classList.remove('currentCall');
     }
@@ -17,7 +17,7 @@ function loadFormation(sequence, formation)
     console.log("Looking for call"+formation);
     document.getElementById("call" + formation).classList.add('currentCall');
 
-    for (count = 0; count < pos.length; ++count)
+    for (var count = 0; count < pos.length; ++count)
     {
         formation_text += pos[count] + "\n";
     }
@@ -27,13 +27,13 @@ function loadFormation(sequence, formation)
 function goToRelativeCall(n)
 {
     var re = /call(\d+)/;
-    currentCalls = document.getElementsByClassName('currentCall');
+    var currentCalls = document.getElementsByClassName('currentCall');
     var index = 0;
 
-    for (i = 0; i < currentCalls.length; ++i)
+    for (var i = 0; i < currentCalls.length; ++i)
     {
-        call = currentCalls.item(i)
-        id = call.getAttribute('id');
+        var call = currentCalls.item(i)
+        var id = call.getAttribute('id');
         if (id)
         {
             index = id.replace(re, "$1");
@@ -59,7 +59,18 @@ function goToPreviousCall()
 
 function loadSequence(sequence)
 {
+    console.log("Loading sequence " + sequence);
     document.getElementById("sequence_title").innerHTML = sequences[sequence].description;
+    var currentSequences = document.getElementsByClassName('currentSequence');
+    for (var i = 0; i < currentSequences.length; ++i)
+    {
+        var e = currentSequences.item(i);
+        console.log("Removing currentSequence from " + i);
+        e.classList.remove('currentSequence');
+    }
+    console.log("Setting current sequence to " + sequence);
+    document.getElementById("sequenceSpan" + sequence).classList.add('currentSequence');
+
     moves = '<li>' + sequences[sequence].opening + '</li>';
     for (call = 0; call < sequences[sequence].moves.length; ++call)
     {
@@ -92,7 +103,7 @@ function loadSequence(sequence)
 
 list = '';
 for  (counter = 0; counter < sequences.length; counter++)
-    list += '<li><a onClick="loadSequence(' + counter + ');">' + sequences[counter].description + '</a></li>';
+    list += '<li><a  id="sequenceButton' + counter +'" onClick="loadSequence(' + counter + ');"><span id="sequenceSpan' + counter +'">' + sequences[counter].description + '</span></a></li>';
 document.getElementById("call_list").innerHTML = list;
 document.getElementById("nextCallButton").addEventListener("touchstart", goToNextCall, false);
 document.getElementById("previousCallButton").addEventListener("touchstart", goToPreviousCall, false);

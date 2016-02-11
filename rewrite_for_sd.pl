@@ -4,6 +4,7 @@ use strict;
 use Data::Dumper;
 use JSON;
 use File::Slurp;
+use Expect;
 
 my @months = qw/
 Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
@@ -97,13 +98,14 @@ sub get_next_sequence
                 {
                     $move .= " $1";
                 }
-                last if ($line =~ /\x0c/);
+                last if (!defined($line) || $line =~ /\x0c/);
 
                 push @{ $sequence->{moves} }, $move;
                 push @{ $sequence->{formations} }, [ @formation ]; 
                @formation = ();
             }
         }
+        last if !defined($line);
     }
     $sequence->{resolve} = pop @{ $sequence->{moves} };
     return $sequence;
@@ -116,7 +118,7 @@ sub parse_sd_file
         || die "Unable to open $filename for reading";
     my @sequences;
     
-    while (my $sequence = get_next_sequence($fh))
+    while (!eof($fh) && (my $sequence = get_next_sequence($fh)))
     {
         push @sequences, $sequence;
     }
@@ -130,32 +132,37 @@ sub write_sequences_to_sd
     my ($intermediate_file, @sequences) = @_;
 
     my $sdcmd = './sdtty';
-    open my $ofh, '|-', "$sdcmd -sequence '$intermediate_file' -keep_all_pictures -no_graphics -no_color"
+    my $exp = Expect->spawn($sdcmd,
+                            '-sequence',
+                            $intermediate_file,
+                            '-keep_all_pictures',
+                            '-no_graphics',
+                            '-no_color')
         || die "unable to open for writing\n";
-    print $ofh "0\n";
-    print $ofh "$sequences[0]->{level}\n";
+    $exp->send( "0\n" );
+    $exp->send( "$sequences[0]->{level}\n" );
     for my $sequence (@sequences)
     {
-        print $ofh "$sequence->{opening}\n";
-        print $ofh "toggle concept levels\n";
+        $exp->send( "$sequence->{opening}\n" );
+        $exp->send( "toggle concept levels\n" );
 
         for my $move (@{ $sequence->{moves} })
         {
             while ($move =~ s/\s*\{\s*(.*?)\s*\}\s*//)
             {
-                print $ofh "insert a comment\n";
-                print $ofh "$1\n";
+                $exp->send( "insert a comment\n" );
+                $exp->send( "$1\n" );
             }
             for my $m (split /\,\s+/, $move)
             {
-                print $ofh "$m\n";
+                $exp->send( "$m\n" );
             }
         }
-        print $ofh "write this sequence\n";
-        print $ofh "$sequence->{description}\n";
+        $exp->send( "write this sequence\n" );
+        $exp->send( "$sequence->{description}\n" );
     }
-    print $ofh "exit\n";
-    close $ofh;
+    $exp->send( "exit\n" );
+    $exp->hard_close();
 }
 
 
@@ -313,6 +320,7 @@ sub change_extension
 for my $filename (@ARGV)
 {
     my @sequences = parse_sd_file($filename);
+    print Dumper(@sequences);
     
     if (1)
     {
