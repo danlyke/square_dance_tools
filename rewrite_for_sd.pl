@@ -98,11 +98,10 @@ sub get_next_sequence
                 {
                     $move .= " $1";
                 }
-                last if (!defined($line) || $line =~ /\x0c/);
-
                 push @{ $sequence->{moves} }, $move;
                 push @{ $sequence->{formations} }, [ @formation ]; 
-               @formation = ();
+                @formation = ();
+                last if (!defined($line) || $line =~ /\x0c/);
             }
         }
         last if !defined($line);
@@ -139,30 +138,92 @@ sub write_sequences_to_sd
                             '-no_graphics',
                             '-no_color')
         || die "unable to open for writing\n";
-    $exp->send( "0\n" );
-    $exp->send( "$sequences[0]->{level}\n" );
-    for my $sequence (@sequences)
-    {
-        $exp->send( "$sequence->{opening}\n" );
-        $exp->send( "toggle concept levels\n" );
 
-        for my $move (@{ $sequence->{moves} })
-        {
-            while ($move =~ s/\s*\{\s*(.*?)\s*\}\s*//)
-            {
-                $exp->send( "insert a comment\n" );
-                $exp->send( "$1\n" );
-            }
-            for my $m (split /\,\s+/, $move)
-            {
-                $exp->send( "$m\n" );
-            }
-        }
-        $exp->send( "write this sequence\n" );
-        $exp->send( "$sequence->{description}\n" );
+    my $timeout = 15;
+    my $sequences = \@sequences;
+    my $moves = [];
+    my $comments = [];
+
+    while (@$sequences)
+    {
+        $exp->expect
+            ($timeout,
+             [ 'Enter the level: ' =>
+               sub
+               {
+                   my ($exp, $sequences) = @_;
+                   print "Sending: "."$sequences->[0]->{level}\n";
+                   $exp->send("$sequences->[0]->{level}\n");
+               }, $sequences
+             ],
+             [ 'Enter startup command> ' =>
+               sub
+               {
+                   my ($exp, $sequences, $movesref) = @_;
+                   print "Startup with $movesref\n";
+                   push @$movesref, ( 'toggle concept levels', @{$sequences->[0]->{moves}} );
+                   print "Sending: "."$sequences->[0]->{opening}\n";
+                   $exp->send("$sequences->[0]->{opening}\n");
+               }, $sequences, $moves
+             ],
+             [ '\-\-\> ' =>
+               sub
+               {
+                   my ($exp, $sequences, $movesref, $commentsref) = @_;
+                   if (@$sequences) {
+                       if (@$movesref) {
+                           my $move = shift @$movesref;
+                       
+                           if ($move =~ s/\s*\{\s*(.*?)\s*\}\s*//) {
+                               print "Sending: ". "insert a comment\n" ;
+                               $exp->send( "insert a comment\n" );
+                               push @$commentsref, $1;
+                               unshift @$movesref, $move;
+#                           } elsif ($move =~ s/^(.*?)\,\s+//) {
+#                               print "Sending: "."$1\n";
+#                               $exp->send("$1\n");
+#                               unshift @$movesref, $move;
+                           } else {
+                               print "Sending: "."$move\n";
+                               $exp->send("$move\n");
+                           }
+                       } else {
+                           push @$commentsref, $sequences->[0]->{description};
+                           print "Pushing description to ".Dumper($commentsref);
+                           print "Sending: ". "write this sequence\n" ;
+                           $exp->send( "write this sequence\n" );
+                           shift @$sequences;
+                       }
+                   } else {
+                       print "Sending: "."exit\n";
+                       $exp->send("exit\n");
+                       $exp->soft_close();
+                   }
+               
+               }, $sequences, $moves, $comments
+             ],
+             [ 'Enter comment: ' =>
+               sub
+               {
+                   my ($exp, $commentsref) = @_;
+                   print "Comments ref is ".Dumper($commentsref);
+                   my $comment = '';
+                   if (@$commentsref) {
+                       $comment = shift(@$commentsref);
+                   }
+                   print "Sending: "."$comment\n";
+                   $exp->send("$comment\n");
+               }, $comments
+             ],
+             [ 'Do you want to write it anyway\? ',
+               sub
+               {
+                   my ($exp) = @_;
+                   $exp->send("y");
+               }
+             ],
+            );
     }
-    $exp->send( "exit\n" );
-    $exp->hard_close();
 }
 
 
@@ -330,7 +391,7 @@ for my $filename (@ARGV)
         my $htmlfile = change_extension($filename, 'html');
         my $jsfile = change_extension($filename, 'js');
         my @newsequences = parse_sd_file($tempfile);
-        print Dumper(\@newsequences);
+#        print Dumper(\@newsequences);
 
         write_html_file("/var/www/squaredancehelper/$htmlfile", @newsequences);
         write_js_file("/var/www/squaredancehelper/$jsfile", @newsequences);
