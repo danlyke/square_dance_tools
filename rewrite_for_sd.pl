@@ -12,6 +12,10 @@ Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
 
 my @dows = qw/ Sun Mon Tue Wed Thu Fri Sat /;
 
+my %move_remapping =
+(
+ 'swing thru 1-1/2' => '1 1/2 swing thru',
+);
 sub get_next_sequence
 {
     my ($fh) = @_;
@@ -67,6 +71,7 @@ sub get_next_sequence
         }
         elsif ($line =~ /^\s+/xs)
         {
+            $line =~ s/  / /g;
             $line =~ s/^ //g;
             push @formation, $line;
         }
@@ -156,6 +161,14 @@ sub write_sequences_to_sd
                    $exp->send("$sequences->[0]->{level}\n");
                }, $sequences
              ],
+             ['\(or a negative number to delete that session\):' =>
+              sub
+              {
+                  print "Got session!\n";
+                  my $exp = shift;
+                  $exp->send("0\n");
+              }
+             ],
              [ 'Enter startup command> ' =>
                sub
                {
@@ -179,12 +192,26 @@ sub write_sequences_to_sd
                                $exp->send( "insert a comment\n" );
                                push @$commentsref, $1;
                                unshift @$movesref, $move;
-#                           } elsif ($move =~ s/^(.*?)\,\s+//) {
-#                               print "Sending: "."$1\n";
-#                               $exp->send("$1\n");
-#                               unshift @$movesref, $move;
+                           } elsif ($move !~ /separate\,/
+                                    && $move !~ /promenade\s+\d\/\d\,/i
+                                    && $move !~ /do your part,/i
+                                    && $move =~ s/^(.*?)\,\s+//) {
+                               print "Sending: "."$1\n";
+                               $exp->send("$1\n");
+                               unshift @$movesref, $move;
                            } else {
-                               print "Sending: "."$move\n";
+                               if ($move =~ s/\[(.*)\]//)
+                               {
+                                   unshift @$movesref, $1;
+                               }
+                               elsif ($move =~ /^do your part\, (\w+) (.*?) while the (\w+) (.*?)$/i)
+                               {
+                                   unshift @$movesref, $4;
+                                   unshift @$movesref, $2;
+                                   $move = "$1 do your part (while the others)";
+                               }
+                               $move = $move_remapping{$move}
+                                   if (defined($move_remapping{$move}));
                                $exp->send("$move\n");
                            }
                        } else {
@@ -250,7 +277,7 @@ sub write_html_file
     open my $ofh, '>', $htmlfile
         || die "Unbale to open $htmlfile for writing\n";
 
-    my $control_height = '80px';
+    my $control_height = '40px';
     print $ofh <<'EOF';
 <!DOCTYPE html>
 <html><head><title>Main Page</title>
@@ -259,63 +286,71 @@ sub write_html_file
 
 <style type="text/css">
 .currentSequence {
-background-color: red;
+background-color: #a0a0a0;
 }
 .currentCall {
-background-color: red;
+background-color: #a0a0a0;
 }
 </style>
 <link href="/favicon.ico" rel="icon" type="image/ico">
 <link href="/favicon.ico" rel="shortcut icon">
 </head>
 <body>
+EOF
+
+    # Nav Buttons & Current Call Name
+    print $ofh <<EOF;
 <div style="
-top: 90%;
-left: 0px;
-width: 66%;
+    top: 0;
+    left: 0px;
+    width:100%; 
     height: $control_height; 
     position: fixed; 
-    width:100%; 
     border: 1px red;
     opacity: 1;
     font-size: 200%;
 ">
 <div style="float:left;">
-<img id="nextCallButton" src="DownArrow.png" />
-<img id="previousCallButton" src="UpArrow.png" />
+<img width="40" height="40" id="nextCallButton" src="DownArrow.png" />
+<img width="40" height="40" id="previousCallButton" src="UpArrow.png" />
 </div>
 <span id="sequence_title"></span>
 </div>
+
+EOF
+    # Unimplemented Search Box
+    print $ofh <<'EOF';
 <div id="search" style="
     visibility: hidden;
     height: 33%;
     position: fixed; 
-    top:0%;
+    top: $control_height;
     width:33%; 
     right:0;
     border: 1px red;
     opacity: 1;
 "><a href="#" onClick="displayFormations();">Formations</a><br/>
 Search stuff goes here
-
-
 </div>
+
+EOF
+    # Formations
+    print $ofh <<EOF;
 <div id="formations" style="
-    height: 33%;
+    height: $control_height;
     position: fixed; 
     top:0%;
     width:33%; 
     right:0;
     border: 1px red;
     opacity: 1;
-    font-size: 180%;
+    font-size: 140%;
     text-align: center;
 ">
 <a href="#" onClick="displaySearch()">Search</a><br/>
 <pre id="formation_view">
- 4B>   3G<   3B>   2G<
-
- 4G>   1B<   1G>   2B<
+ 4B>  3G<  3B>  2G<
+ 4G>  1B<  1G>  2B<
 </pre></div>
 <div style="
     position: fixed; 
@@ -331,6 +366,9 @@ Search stuff goes here
 "><ul id="call_list"></ul>
 </div>
 
+EOF
+    # Sequence
+    print $ofh <<EOF;
 <div style="
 overflow:scroll;
 position: fixed;
